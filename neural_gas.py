@@ -6,7 +6,29 @@
         copy this code
         strip it down to the bare essential components I need
             GUI display of network that:
-                starts with 
+                a 2d histogram of how data is being added on 1 plot
+                    colors are used to represent the number of
+                    samples in a given bin with a color legend on
+                    the side 
+
+                a 2d plot of the neural gas
+                    starts with 2 nodes like in the research paper
+                    the network itself could be a dictionary
+                    where each key is a node
+                    each node's value is another dictionary
+                    where we have:
+                        coordinates
+                        list of nodes connected to
+                        error from original position (i think?)
+
+                a bunch of data on the side displaying:
+                    number of data points added
+                    number of nodes in the neural gas
+
+                buttons so user can:
+                    start data addition
+                    pause data addition
+                    reset data to zero
 
 
     SOURCES:
