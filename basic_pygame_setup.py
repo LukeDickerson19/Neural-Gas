@@ -11,60 +11,15 @@ import os
 
         SHORT TERM (now):
 
-            reformat display so that they're right next to each other
-
-            make it so their borders are always the same size
-
-            make normal distribution that continuously
-            generates floats
-
-            build histogram from that
-
 
         MEDIUM TERM (later):
-
-            I want GUI display of network that:
-                a 2d histogram of how data is being added on 1 plot
-                    colors are used to represent the number of
-                    samples in a given bin with a color legend on
-                    the side 
-
-                a 2d plot of the neural gas
-                    starts with 2 nodes like in the research paper
-                    the network itself could be a dictionary
-                    where each key is a node
-                    each node's value is another dictionary
-                    where we have:
-                        coordinates
-                        list of nodes connected to
-                        error from original position (i think?)
-
-                a bunch of data on the side displaying:
-                    number of data points added
-                    number of nodes in the neural gas
-
-                buttons so user can:
-                    start data addition
-                    pause data addition
-                    reset data to zero
 
 
         LONG TERM (eventually):
 
     SOURCES:
 
-        pyqtgraph:
-        https://github.com/pyqtgraph/pyqtgraph
-
-        Base code aquired from: https://stackoverflow.com/questions/46868432/pyqtgraph-change-color-of-node-and-its-edges-on-click?rq=1
-        provides PyQt graph code to display the network
-    
-            https://stackoverflow.com/questions/46791395/pyqtgraph-get-text-of-node-and-change-color-on-mouseclick
-                this link was accessed from the base code
-                it might be easier to strip this down
-
-        A Growing Neural Gas Learns Topologies - Original Research Paper
-        https://papers.nips.cc/paper/893-a-growing-neural-gas-network-learns-topologies.pdf
+    OTHER:
 
         '''
 
@@ -82,78 +37,13 @@ class PyGameView(object):
         # fill background
         self.surface.fill(pygame.Color('black'))
 
-        #pygame.draw.circle(self.surface, pygame.Color('green'), (50,50), 10)
-        #pygame.draw.line(self.surface,   (255,255,255), (10, 20), (30, 40), 4) # (start_x, start_y), (end_x, end_y), width
-        #pygame.draw.rect(self.surface,   pygame.Color('red'), [100, 100, 40, 100])
-
-        # draw histogram of actual data
-        self.draw_2d_histogram([
-            [0,1,0],
-            [1,3,1],
-            [0,1,0]
-            ])
-
-        # draw neural gas network
-        self.draw_2d_graph({
-            (10,10):[(30,30), (10,20)],
-            (30,30):[(10,10)],
-            (10,20):[(10,10)]
-            })
+        pygame.draw.circle(self.surface, pygame.Color('green'), (50,50), 10)
+        pygame.draw.line(self.surface,   (255,255,255), (10, 20), (30, 40), 4) # (start_x, start_y), (end_x, end_y), width
+        pygame.draw.rect(self.surface,   pygame.Color('red'), [100, 100, 40, 100])
 
         # update display
         pygame.display.update()
 
-    def draw_2d_graph(self, neural_gas):
-
-        sp = (150, 50)
-        w, h = 100, 100
-
-        # draw border graph resides in
-        pygame.draw.rect(self.surface,
-            pygame.Color('white'),
-            (sp[0], sp[1], w, h), 1)
-            
-        # draw graph
-        edges = []
-        for v, es in neural_gas.items():
-
-            # draw vertex v
-            pygame.draw.circle(self.surface,
-                pygame.Color('white'),
-                (sp[0]+v[0], sp[1]+v[1]),
-                3)
-
-            # draw edge e in edges es connected to vertex v 
-            for e in es:
-                if not (e, v) in edges:
-                    edges.append((e, v))
-                    pygame.draw.line(self.surface,
-                        pygame.Color('white'),
-                        (sp[0]+v[0], sp[1]+v[1]), 
-                        (sp[0]+e[0], sp[1]+e[1]),
-                        2)
-    def draw_2d_histogram(self, hist):
-
-        sp = (50, 50) # sp = start point
-        mx = max(map(max, hist))
-        mn = min(map(min, hist))
-        s = 10 # s = bin_pixel_width
-
-        # draw border of histogram
-        pygame.draw.rect(self.surface, pygame.Color('white'),
-            (sp[0], sp[1], s*len(hist), s*len(hist[0])), 3)
-
-        # draw bins of histogram
-        for i in range(len(hist)):
-            for j in range(len(hist)):
-                pygame.draw.rect(self.surface,
-                    self.bin_color(hist[i][j], mx, mn),
-                    [sp[0] + i*s, sp[1] + j*s, s, s])
-    def bin_color(self, value, mx, mn):
-
-        # interpolate
-        x = float(value - mn) / (mx - mn)
-        return (255*x,255*x,255*x)
 
     def draw_text_in_simulation(self, text, x, y, size, color = (100, 100, 100)):
         """ 
@@ -282,7 +172,7 @@ if __name__ == '__main__':
         iterations += 1
         if time.time() - start_time > period:
             start_time += period
-            # print('%s fps' % iterations)
+            print('%s fps' % iterations)
             iterations = 0
 
         
@@ -302,5 +192,4 @@ if __name__ == '__main__':
             view.screen.blit(view.surface, (0,0))
             pygame.display.update()
             #time.sleep(model.sleep_time)
-
 
