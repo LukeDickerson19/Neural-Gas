@@ -1,9 +1,13 @@
 import pygame
 import random
 import time
+import math
 from pygame.locals import QUIT, KEYDOWN
 from pygame import gfxdraw
-import os
+import os, sys
+import numpy as np
+
+
 
 ''' NOTES:
 
@@ -11,14 +15,13 @@ import os
 
         SHORT TERM (now):
 
-            reformat display so that they're right next to each other
+            make neural gas
+            display neural gas
+            make neural gas histogram
+            display neural gas histogram
 
-            make it so their borders are always the same size
-
-            make normal distribution that continuously
-            generates floats
-
-            build histogram from that
+            maybe make size of verts and edges inversly proportional to
+            the number of verts being plotted
 
 
         MEDIUM TERM (later):
@@ -48,26 +51,32 @@ import os
                     pause data addition
                     reset data to zero
 
+                I need to find a way to rebuild a histogram
+                from the neural gass network to then compare
+                to the actual histogram of the original data
+
 
         LONG TERM (eventually):
 
+            maybe make different data distributions than normal distribution
+            do something like what they do in videos
+
+            make gifs and pretty readme
+
+            maybe make a video explaining neural gas how it works
+            and talk about comparing it to histogram
+            and talk about tuning hyper parameters
+
+
     SOURCES:
 
-        pyqtgraph:
-        https://github.com/pyqtgraph/pyqtgraph
-
-        Base code aquired from: https://stackoverflow.com/questions/46868432/pyqtgraph-change-color-of-node-and-its-edges-on-click?rq=1
-        provides PyQt graph code to display the network
-    
-            https://stackoverflow.com/questions/46791395/pyqtgraph-get-text-of-node-and-change-color-on-mouseclick
-                this link was accessed from the base code
-                it might be easier to strip this down
+        pygame:
+        https://www.pygame.org/docs/
 
         A Growing Neural Gas Learns Topologies - Original Research Paper
         https://papers.nips.cc/paper/893-a-growing-neural-gas-network-learns-topologies.pdf
 
         '''
-
 
 class PyGameView(object):
 
@@ -76,7 +85,9 @@ class PyGameView(object):
         self.model = model
         self.screen = pygame.display.set_mode((size[0], size[1]))
         self.surface = pygame.Surface((size[0], size[1]))
-        
+
+        self.s = 15 # s = the number of pixels a bin of the histogram is wide and tall
+
     def draw_simulation(self):
 
         # fill background
@@ -86,27 +97,28 @@ class PyGameView(object):
         #pygame.draw.line(self.surface,   (255,255,255), (10, 20), (30, 40), 4) # (start_x, start_y), (end_x, end_y), width
         #pygame.draw.rect(self.surface,   pygame.Color('red'), [100, 100, 40, 100])
 
-        # draw histogram of actual data
-        self.draw_2d_histogram([
-            [0,1,0],
-            [1,3,1],
-            [0,1,0]
-            ])
+        # draw actual data
+        self.draw_2d_graph(model.raw_data, (150, 100), r=2)
 
-        # draw neural gas network
-        self.draw_2d_graph({
-            (10,10):[(30,30), (10,20)],
-            (30,30):[(10,10)],
-            (10,20):[(10,10)]
-            })
+        # draw histogram of actual data
+        self.draw_2d_histogram(model.raw_histogram, (150 + model.b * self.s + 25, 100))
+
+        # # draw neural gas network
+        # self.draw_2d_graph({
+        #     (10,10):[(30,30), (10,20)],
+        #     (30,30):[(10,10)],
+        #     (10,20):[(10,10)]
+        #     })
 
         # update display
         pygame.display.update()
 
-    def draw_2d_graph(self, neural_gas):
+    # graph = dictionary, keys = nodes, values = edges
+    # sp = starting point of graph
+    # r = radius of vertices, default value of 3
+    def draw_2d_graph(self, graph, sp, r=3):
 
-        sp = (150, 50)
-        w, h = 100, 100
+        w, h = model.b * self.s, model.b * self.s
 
         # draw border graph resides in
         pygame.draw.rect(self.surface,
@@ -115,13 +127,16 @@ class PyGameView(object):
             
         # draw graph
         edges = []
-        for v, es in neural_gas.items():
+        for v, es in graph.items():
 
+            # interpolate v to screen
+            vx = math.trunc((w * (v[0] - model.min_x) / (model.max_x - model.min_x)) + sp[0])
+            vy = math.trunc((h * (v[1] - model.min_y) / (model.max_y - model.min_y)) + sp[1])
+            
             # draw vertex v
             pygame.draw.circle(self.surface,
                 pygame.Color('white'),
-                (sp[0]+v[0], sp[1]+v[1]),
-                3)
+                (vx, vy), r)
 
             # draw edge e in edges es connected to vertex v 
             for e in es:
@@ -132,12 +147,11 @@ class PyGameView(object):
                         (sp[0]+v[0], sp[1]+v[1]), 
                         (sp[0]+e[0], sp[1]+e[1]),
                         2)
-    def draw_2d_histogram(self, hist):
+    def draw_2d_histogram(self, hist, sp):
 
-        sp = (50, 50) # sp = start point
         mx = max(map(max, hist))
         mn = min(map(min, hist))
-        s = 10 # s = bin_pixel_width
+        s = self.s
 
         # draw border of histogram
         pygame.draw.rect(self.surface, pygame.Color('white'),
@@ -147,7 +161,7 @@ class PyGameView(object):
         for i in range(len(hist)):
             for j in range(len(hist)):
                 pygame.draw.rect(self.surface,
-                    self.bin_color(hist[i][j], mx, mn),
+                    self.bin_color(hist[j][i], mx, mn),
                     [sp[0] + i*s, sp[1] + j*s, s, s])
     def bin_color(self, value, mx, mn):
 
@@ -186,6 +200,7 @@ class Model(object):
             width (int): width of window in pixels
             height (int): height of window in pixels
         """
+
         #window parameters / drawing
         self.height = height
         self.width = width
@@ -196,12 +211,56 @@ class Model(object):
 
         ############## NEURAL GAS LOGIC STARTS HERE ##################
 
+        # raw data has a 2d normal distribution
+        self.raw_data = {}
+        
+        self.max_x, self.min_x = 10, 0
+        self.mu_x, self.std_x = (self.max_x - self.min_x) / 2, ((self.max_x - self.min_x) / 2 ) / 3 
+
+        self.max_y, self.min_y = 10, 0
+        self.mu_y, self.std_y = (self.max_y - self.min_y) / 2, ((self.max_y - self.min_y) / 2 ) / 3 
+
+
+        self.b = 10 # b = the number of bins the histogram is wide and tall
+        self.raw_histogram = [[0 for x in range(self.b)] for y in range(self.b)]
+
 
 
         ##############################################################
 
     def update(self, controller):
-        pass
+        
+        # create new data point in 2d normal distribution
+        # np.random.normal(mu, sigma, num_samples)
+        x = np.random.normal(self.mu_x, self.std_x, 1)[0]
+        if x > self.max_x: x = self.max_x
+        if x < self.min_x: x = self.min_x
+        y = np.random.normal(self.mu_x, self.std_x, 1)[0]
+        if y > self.max_y: y = self.max_y
+        if y < self.min_y: y = self.min_y
+        new_data_point = (x, y)
+
+        # add it to list of data
+        self.raw_data[new_data_point] = []
+
+        # add it to histogram
+        bx = math.trunc(self.b * (x - self.min_x) / (self.max_x - self.min_x))
+        if bx == self.b: bx -= 1
+        by = math.trunc(self.b * (y - self.min_y) / (self.max_y - self.min_y))
+        if by == self.b: by -= 1
+        self.raw_histogram[by][bx] += 1
+
+        # print 'raw data'
+        # print self.raw_data
+
+        # print '\nhistogram'
+        # for i in range(self.b):
+        #     print self.raw_histogram[i]
+        # print '-----\n'
+
+        if len(self.raw_data) > 1000:
+            print 'exitting because there are 1000 data points.'
+            sys.exit()
 
 class PyGameKeyboardController(object):
     """
@@ -301,6 +360,6 @@ if __name__ == '__main__':
             view.draw_simulation()
             view.screen.blit(view.surface, (0,0))
             pygame.display.update()
-            #time.sleep(model.sleep_time)
+            time.sleep(0.1)
 
 
