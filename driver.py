@@ -6,12 +6,15 @@ from pygame.locals import QUIT, KEYDOWN
 from pygame import gfxdraw
 import os, sys
 import numpy as np
-
+from neural_gas import *
 
 
 ''' NOTES:
 
     TO DO:
+
+        finish neural gas component data structures
+        redo neural gas logic with new data structures
 
         SHORT TERM (now):
 
@@ -126,6 +129,38 @@ class PyGameView(object):
         pygame.draw.rect(self.surface,
             pygame.Color('white'),
             (sp[0], sp[1], w, h), 1)
+
+        # draw graph
+        for v in graph.vertices:
+
+            # interpolate v to screen
+            vx = math.trunc((w * (v.pos[0] - model.min_x) / (model.max_x - model.min_x)) + sp[0])
+            vy = math.trunc((h * (v.pos[1] - model.min_y) / (model.max_y - model.min_y)) + sp[1])
+            
+            # draw vertex v
+            pygame.draw.circle(self.surface,
+                pygame.Color('white'),
+                (vx, vy), r)
+
+        # draw edge e in edges es connected to vertex v 
+        for e in graph.edges:
+            v1x = math.trunc((w * (e.vertices[0].pos[0] - model.min_x) / (model.max_x - model.min_x)) + sp[0])
+            v1y = math.trunc((h * (e.vertices[0].pos[1] - model.min_y) / (model.max_y - model.min_y)) + sp[1])
+            v2x = math.trunc((w * (e.vertices[1].pos[0] - model.min_x) / (model.max_x - model.min_x)) + sp[0])
+            v2y = math.trunc((h * (e.vertices[1].pos[1] - model.min_y) / (model.max_y - model.min_y)) + sp[1])
+            pygame.draw.line(self.surface,
+                pygame.Color('white'),
+                (sp[0]+v1x, sp[1]+v1y), 
+                (sp[0]+v2x, sp[1]+v2y),
+                2)
+    def draw_2d_graph_old(self, graph, sp, r=3):
+
+        w, h = model.b * self.s, model.b * self.s
+
+        # draw border graph resides in
+        pygame.draw.rect(self.surface,
+            pygame.Color('white'),
+            (sp[0], sp[1], w, h), 1)
             
         # draw graph
         edges = []
@@ -214,7 +249,7 @@ class Model(object):
         ############## NEURAL GAS LOGIC STARTS HERE ##################
 
         # raw data has a 2d normal distribution
-        self.raw_data = {}
+        self.raw_data = Graph()
         
         self.max_x, self.min_x = 10, 0
         self.mu_x, self.std_x = (self.max_x - self.min_x) / 2, ((self.max_x - self.min_x) / 2 ) / 3 
@@ -238,24 +273,19 @@ class Model(object):
         new_data_point = self.random2dPoint()
 
         # add it to list of data
-        self.raw_data[new_data_point] = []
+        self.raw_data.add_vertex(new_data_point)
 
         # add it to histogram
-        bx = math.trunc(self.b * (x - self.min_x) / (self.max_x - self.min_x))
+        bx = math.trunc(self.b * (new_data_point[0] - self.min_x) / (self.max_x - self.min_x))
         if bx == self.b: bx -= 1
-        by = math.trunc(self.b * (y - self.min_y) / (self.max_y - self.min_y))
+        by = math.trunc(self.b * (new_data_point[1] - self.min_y) / (self.max_y - self.min_y))
         if by == self.b: by -= 1
         self.raw_histogram[by][bx] += 1
 
-        # print 'raw data'
-        # print self.raw_data
+        # update the neural gas
+        self.neural_gas.update(new_data_point)
 
-        # print '\nhistogram'
-        # for i in range(self.b):
-        #     print self.raw_histogram[i]
-        # print '-----\n'
-
-        if len(self.raw_data) > 1000:
+        if len(self.raw_data.vertices) > 1000:
             print 'exitting because there are 1000 data points.'
             sys.exit()
 
