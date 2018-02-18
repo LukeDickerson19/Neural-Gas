@@ -13,13 +13,11 @@ from neural_gas import *
 
     TO DO:
 
-        finish neural gas component data structures
-        redo neural gas logic with new data structures
-
         SHORT TERM (now):
 
             make neural gas
-                had to add age to edges, verify that doesnt fuck up other stuff in this file
+                finish neural gas component data structures
+                redo neural gas logic with new data structures
                 walk through neural gas logic with print statements
                 find places to use enumerate, Ctrl f "len(range("
 
