@@ -36,6 +36,15 @@ def random2dPoint(
 		sys.exit() 
 
 	return (x, y)
+def normpdf(x, mean, sd):
+    # curtesy of: https://stackoverflow.com/questions/12412895/calculate-probability-in-normal-distribution-given-mean-std-in-python
+    # future optimization: https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.norm.html
+    var = float(sd)**2
+    pi = 3.1415926
+    denom = (2*pi*var)**.5
+    num = math.exp(-(float(x)-float(mean))**2/(2*var))
+    return num/denom
+
 
 class Vertex():
 
@@ -186,72 +195,34 @@ class NeuralGas(Graph):
 		# in neural gas graph to new_data point
 		s1, s2 = self.find_nearest_2_points(new_data)
 
-		# print 's1:'
-		# s1.print_vertex()
-		# print 's2:'
-		# s2.print_vertex()
-
-		# print '\nincrementing age of edges eminating from s1'
-		# print 'ages before:'		
-		# for e in self.edges:
-		# 	e.print_edge()
-		# 	print e.age
-
 		# increment age of all edges eminating from s1
 		for e in self.edges:
 			if e.has_vertex(s1):
 				e.increment_age()
 
-		# print 'ages after:'
-		# for e in self.edges:
-		# 	e.print_edge()
-		# 	print e.age
-
-
 		# Add the squared distance between the input signal and the nearest unit in
 		# input space to a local counter variable (pretty sure they're talking about
 		# the error of s1 here)
-		# print '\nadding dist(d1, new_data)**2 to s1.error'
-		# print 'before: %f' % s1.error
 		s1.error += dist(s1, new_data)**2
-		# print 'after: %f' % s1.error
 
 		# Move s1 and its direct topological neighbors towards new_data by fractions
 		# Eb and En, respectively, of the total distance
-		# print '\nmoving s1 and neighbors by Eb and En'
-		# print 'before'
-		# for u in self.vertices:
-		# 	u.print_vertex()
 		for i, u in enumerate(self.vertices):
 			if u == s1:
 				self.vertices[i].move(self.Eb*(new_data[0]-u.pos[0]), self.Eb*(new_data[1]-u.pos[1]))
 			elif self.neighbors(u, s1):
 				self.vertices[i].move(self.Eb*(new_data[0]-u.pos[0]), self.Eb*(new_data[1]-u.pos[1]))
-		# print 'after'
-		# for u in self.vertices:
-		# 	u.print_vertex()
-
 
 		# If s1 and s2 are connected by an edge, set the age of this edge to zero. If
 		# such an edge does not exist, create it.
-		# print '\nsetting age of s1-s2 to 0 if it exists, or creating it'
 		edge_s1_s2 = self.get_edge(s1, s2)
 		if edge_s1_s2 != None:
-			# print 'before'
-			# edge_s1_s2.print_edge()
 			edge_s1_s2.age = 0
 		else:
-			# print 'before: edge did not exist'
 			self.add_gas_edge(s1, s2)
-		# print 'after'
-		# self.get_edge(s1, s2).print_edge()
 		
 		# Remove edges with an age larger than a_max. If this results in points having
 		# no emanating edges, remove them as well.
-		# print '\nremoving edges older than %d' % self.a_max
-		# print 'before'
-		# for e in self.edges:
-		# 	e.print_edge()
 		for i, e in enumerate(self.edges):
 			if e.age > self.a_max:
 				eu1, eu2 = e.vertices
@@ -260,24 +231,17 @@ class NeuralGas(Graph):
 					self.remove_vertex(eu1)
 				if self.isolated(eu2):
 					self.remove_vertex(eu2)
-		# print 'after'
-		# for e in self.edges:
-		# 	e.print_edge()
 
 		# If the number of input signals generated so far is an integer multiple of a
 		# parameter lmbda, insert a new unit as follows:
 		self.num_input_signals += 1
 		if self.num_input_signals % self.lmbda == 0:
 
-			# print 'entered if self.num_input_signals % self.lmbda == 0'
-
 			# 	Determine the unit q with the maximum accumulated error.
 			q = self.vertices[0]
 			for u in self.vertices:
 				if u.error > q.error:
 					q = u
-			# print 'q:'
-			# print q.print_vertex()
 
  			# Insert a new unit r halfway between q and its neighbor f with the
 			# largest error variable: Wr = 0.5 (wq + wf)
@@ -287,71 +251,26 @@ class NeuralGas(Graph):
 				if self.get_gas_edge(u, q) != None:
 					if u.error > f.error:
 						f = u
-
-			#f = max([u.error for u in (set(self.vertices) - set([q]))])
-			# print 'f:'
-			# print f.print_vertex()
 			
 			r = Unit((0.5*(q.pos[0]+f.pos[0]),0.5*(q.pos[1]+f.pos[1])))
-			# print 'r:'
-			# print r.print_vertex()
-			# print 'adding r'
-			# print 'before'
-			# for u in self.vertices:
-			# 	u.print_vertex()
 			self.add_unit(r)
-			# print 'after'
-			# for u in self.vertices:
-			# 	u.print_vertex()
 
 			# Insert edges connecting the new unit r with units q and f, and remove
 			# the original edge between q and f.
-			# print '\ncreating q-r and r-f and removing q-f'
-			# print 'before'
-			# for e in self.edges:
-			# 	e.print_edge()
 			self.add_gas_edge(q, r)
 			self.add_gas_edge(f, r)
 			self.remove_gas_edge2(q, f)
-			# print 'after'
-			# for e in self.edges:
-			# 	e.print_edge()
 
 			# Decrease the error variables of q and f by multiplying them with a
 			# constant self.alpha Initialize the error variable of r with the new value of the
 			# error variable of q.
-			# print '\nq and f error *= alpha'
-			# print 'before'
-			# print q.error
-			# print f.error
 			q.error *= self.alpha
 			f.error *= self.alpha
-			# print 'after'
-			# print q.error
-			# print f.error
-			# print 'r error = q error'
-			# print 'before'
-			# print r.error
 			r.error = q.error
-			# print 'after'
-			# print r.error
-
-		# else:
-		# 	print 'NO entered if self.num_input_signals % self.lmbda == 0'
-		# 	print 'num_input sigs = %d, lmda = %d' % (self.num_input_signals, self.lmbda)
 
 		# Decrease all error variables by multiplying them with a constant d.
-		# print '\ndecreasing all errors by *= d'
-		# print 'before'
-		# for u in self.vertices:
-		# 	print u.error
 		for u in self.vertices:
 			u.error *= self.d
-		# print 'after'
-		# for u in self.vertices:
-		# 	print u.error
-
-		# sys.exit()
 
 	def find_nearest_2_points(self, new_data):
 

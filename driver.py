@@ -15,16 +15,32 @@ from neural_gas import *
 
         SHORT TERM (now):
 
-            make neural gas
-                write neural gas logic with new data structures
-                walk through neural gas logic with print statements
-                find places to use enumerate, Ctrl f "len(range("
-
-            display neural gas
             make neural gas histogram
-            display neural gas histogram
+                how are we going to make the
+                probability density function?
+                    create 2d fourier series
+                        normal distribution as base function
+                        mean is the location of each unit
+                        std_dev is based on:
+                            total number of Units
+                            total number of data points 
+                            
+                            ... if you could model this in mathematica
+                            where you could plot the 2d normal distributions
+                            both individually where they overlap and cumutively
+                            where they sum to form the actual distribution
+                            and you could pause the data stream and 
+                            modify what the std_dev is, to represent the data
+                            as accurately as possible .. see if that value holds
+                            its accuracy when the data stream is unpaused ...
+                            is there a way to then do this mathematically
+                            ... for now i could create this fourier serires thing,
+                            and just make std_dev a constant, (or a fn. of the 
+                                num of units and num of data points)
+                            and then see hwo the mean squared error of the histogram
+                            fluctuates over time as data is input
 
-            add numbers and chart data (see MEDIUM TERM)
+                            ... wtf this doesnt use the edges at all!
 
         MEDIUM TERM (later):
 
@@ -69,6 +85,8 @@ from neural_gas import *
             and talk about comparing it to histogram
             and talk about tuning hyper parameters
 
+            make this work in python 3.5 too
+
 
     SOURCES:
 
@@ -111,6 +129,19 @@ class PyGameView(object):
 
         # draw neural gas network
         self.draw_2d_graph(model.neural_gas, (150, 50 + model.b * self.s + 25))
+
+        # draw histogram of neural gas
+        self.draw_2d_histogram(model.gas_histogram, (150 + model.b * self.s + 25, 50 + model.b * self.s + 25))
+
+        # provide data:
+        #    Number of data points (in top left plot)
+        self.draw_text_in_simulation(
+            str('Number of Data Points = %d' % model.num_data_points),
+            150, 30, 20, pygame.Color('white'))
+        #    Number of Units (Nodes in bottom left plot)
+        self.draw_text_in_simulation(
+            str('Number of Units = %d' % len(model.neural_gas.vertices)),
+            150, 50 + 2*model.b * self.s + 30, 20, pygame.Color('white'))
 
         # update display
         pygame.display.update()
@@ -197,9 +228,11 @@ class PyGameView(object):
     def bin_color(self, value, mx, mn):
 
         # interpolate
-        x = float(value - mn) / (mx - mn)
-        return (255*x,255*x,255*x)
-
+        if mx != 0:
+            x = float(value - mn) / (mx - mn)
+            return (255*x,255*x,255*x)
+        else:
+            return (0,0,0)
     def draw_text_in_simulation(self, text, x, y, size, color = (100, 100, 100)):
         """ 
         Helper to draw text onto screen.
@@ -220,13 +253,6 @@ class PyGameView(object):
 class Model(object):
 
     def __init__(self, width, height):
-        """
-        initialize model, environment, and default keyboard controller states
-
-        Args:
-            width (int): width of window in pixels
-            height (int): height of window in pixels
-        """
 
         #window parameters / drawing
         self.height = height
@@ -234,7 +260,7 @@ class Model(object):
         self.show = True # show current model
         self.show_controls = False # controls toggle
 
-
+        self.num_data_points = 0
 
         ############## NEURAL GAS LOGIC STARTS HERE ##################
 
@@ -255,7 +281,10 @@ class Model(object):
 
         self.neural_gas = NeuralGas(self)
 
-        ##############################################################
+        self.gas_histogram = [[0 for x in range(self.b)] for y in range(self.b)]
+        self.gas_std_dev = 1.0
+
+        ###################### continued in update ####################
 
     def update(self, controller):
         
@@ -266,35 +295,40 @@ class Model(object):
             'normal')
 
         # add it to list of data
-        self.raw_data.add_vertex(new_data_point)
+        # self.raw_data.add_vertex(new_data_point)
+        self.num_data_points += 1
 
-        # add it to histogram
+        # add it to raw data histogram
         bx = math.trunc(self.b * (new_data_point[0] - self.min_x) / (self.max_x - self.min_x))
         if bx == self.b: bx -= 1
         by = math.trunc(self.b * (new_data_point[1] - self.min_y) / (self.max_y - self.min_y))
         if by == self.b: by -= 1
         self.raw_histogram[by][bx] += 1
 
-        # print 'START!'
-        # print 'new_data_point'
-        # print new_data_point
-        # self.neural_gas.print_graph()
-
         # update the neural gas
         self.neural_gas.update(new_data_point)
 
-        # self.neural_gas.print_graph()
-        # print 'FINISH!'
+        # update neural gas histogram
+        self.update_gas_histogram()
 
-        if len(self.raw_data.vertices) > 1000:
-            print 'exitting because there are 1000 data points.'
-            sys.exit()
+    def update_gas_histogram(self):
+
+        # reset
+        self.gas_histogram = [[0 for x in range(self.b)] for y in range(self.b)]
+
+        half_bin_width = (float(self.max_x) - self.min_x) / (2*self.b) # half a bin width on x axis
+        half_bin_height = (float(self.max_y) - self.min_y) / (2*self.b) # half a bin width on y axis
+
+        # sum fourier series
+        for u in self.neural_gas.vertices:
+            for i in range(self.b):
+                for j in range(self.b):
+                    bin_x = i * ((float(self.max_x) - self.min_x) / self.b)
+                    bin_y = j * ((float(self.max_y) - self.min_y) / self.b)
+                    self.gas_histogram[j][i] += normpdf(dist(u, (bin_x+half_bin_width,bin_y+half_bin_height)), 0, self.gas_std_dev)
+
 
 class PyGameKeyboardController(object):
-    """
-    Keyboard controller that responds to keyboard input
-    """
-
 
     def __init__(self):
         """
@@ -305,7 +339,6 @@ class PyGameKeyboardController(object):
         """
         #self.model = model
         self.paused = False
-
 
     def handle_event(self, event):
         """ 
@@ -354,7 +387,7 @@ if __name__ == '__main__':
 
     pygame.init()
 
-    SCREEN_SIZE = (750, 500)
+    SCREEN_SIZE = (750, 600)
     model = Model(SCREEN_SIZE[0], SCREEN_SIZE[1])
     view = PyGameView(model, SCREEN_SIZE)
     controller = PyGameKeyboardController()
@@ -383,7 +416,11 @@ if __name__ == '__main__':
 
         if not controller.paused:
             model.update(controller)
-        
+
+        if model.num_data_points > 10000:
+            print 'pausing because there are 10000 data points. Continuing will take up a lot of memory ...'
+            controller.paused = True
+
         if model.show:
             view.draw_simulation()
             view.screen.blit(view.surface, (0,0))
