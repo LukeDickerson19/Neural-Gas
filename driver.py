@@ -16,8 +16,7 @@ from neural_gas import *
         SHORT TERM (now):
 
             make neural gas
-                finish neural gas component data structures
-                redo neural gas logic with new data structures
+                write neural gas logic with new data structures
                 walk through neural gas logic with print statements
                 find places to use enumerate, Ctrl f "len(range("
 
@@ -73,11 +72,15 @@ from neural_gas import *
 
     SOURCES:
 
-        pygame:
+        pygame
         https://www.pygame.org/docs/
 
         A Growing Neural Gas Learns Topologies - Original Research Paper
         https://papers.nips.cc/paper/893-a-growing-neural-gas-network-learns-topologies.pdf
+
+        C++ implementation of growing neural gas:
+        https://github.com/BelBES/libGNG/blob/master/GNG.cpp
+            helped clear up how to calculate error
 
         '''
 
@@ -89,7 +92,7 @@ class PyGameView(object):
         self.screen = pygame.display.set_mode((size[0], size[1]))
         self.surface = pygame.Surface((size[0], size[1]))
 
-        self.s = 15 # s = the number of pixels a bin of the histogram is wide and tall
+        self.s = 10 # s = the number of pixels a bin of the histogram is wide and tall
 
     def draw_simulation(self):
 
@@ -101,22 +104,17 @@ class PyGameView(object):
         #pygame.draw.rect(self.surface,   pygame.Color('red'), [100, 100, 40, 100])
 
         # draw actual data
-        self.draw_2d_graph(model.raw_data, (150, 100), r=2)
+        self.draw_2d_graph(model.raw_data, (150, 50), r=2)
 
         # draw histogram of actual data
-        self.draw_2d_histogram(model.raw_histogram, (150 + model.b * self.s + 25, 100))
+        self.draw_2d_histogram(model.raw_histogram, (150 + model.b * self.s + 25, 50))
 
-        # # draw neural gas network
-        # self.draw_2d_graph({
-        #     (10,10):[(30,30), (10,20)],
-        #     (30,30):[(10,10)],
-        #     (10,20):[(10,10)]
-        #     })
+        # draw neural gas network
+        self.draw_2d_graph(model.neural_gas, (150, 50 + model.b * self.s + 25))
 
         # update display
         pygame.display.update()
 
-    # graph = dictionary, keys = nodes, values = edges
     # sp = starting point of graph
     # r = radius of vertices, default value of 3
     def draw_2d_graph(self, graph, sp, r=3):
@@ -148,9 +146,7 @@ class PyGameView(object):
             v2y = math.trunc((h * (e.vertices[1].pos[1] - model.min_y) / (model.max_y - model.min_y)) + sp[1])
             pygame.draw.line(self.surface,
                 pygame.Color('white'),
-                (sp[0]+v1x, sp[1]+v1y), 
-                (sp[0]+v2x, sp[1]+v2y),
-                2)
+                (v1x, v1y), (v2x, v2y), 2)
     def draw_2d_graph_old(self, graph, sp, r=3):
 
         w, h = model.b * self.s, model.b * self.s
@@ -222,10 +218,6 @@ class PyGameView(object):
         self.surface.blit(text_render, (x, y))
 
 class Model(object):
-    """
-    Represents the state of all entities in the environment and drawing
-    parameters
-    """
 
     def __init__(self, width, height):
         """
@@ -257,7 +249,7 @@ class Model(object):
 
         self.R  = (self.min_x, self.min_y, self.max_x, self.max_y)
 
-        self.b = 10 # b = the number of bins the histogram is wide and tall
+        self.b = 20 # b = the number of bins the histogram is wide and tall
         self.raw_histogram = [[0 for x in range(self.b)] for y in range(self.b)]
 
 
@@ -268,7 +260,10 @@ class Model(object):
     def update(self, controller):
         
         # create new data point in 2d normal distribution
-        new_data_point = self.random2dPoint()
+        new_data_point = random2dPoint(
+            self.min_x, self.max_x, self.mu_x, self.std_x, 
+            self.min_y, self.max_y, self.mu_y, self.std_y,
+            'normal')
 
         # add it to list of data
         self.raw_data.add_vertex(new_data_point)
@@ -280,24 +275,20 @@ class Model(object):
         if by == self.b: by -= 1
         self.raw_histogram[by][bx] += 1
 
+        # print 'START!'
+        # print 'new_data_point'
+        # print new_data_point
+        # self.neural_gas.print_graph()
+
         # update the neural gas
         self.neural_gas.update(new_data_point)
+
+        # self.neural_gas.print_graph()
+        # print 'FINISH!'
 
         if len(self.raw_data.vertices) > 1000:
             print 'exitting because there are 1000 data points.'
             sys.exit()
-
-    def random2dPoint(self):
-
-        # np.random.normal(mu, sigma, num_samples)
-        x = np.random.normal(self.mu_x, self.std_x, 1)[0]
-        if x > self.max_x: x = self.max_x
-        if x < self.min_x: x = self.min_x
-        y = np.random.normal(self.mu_x, self.std_x, 1)[0]
-        if y > self.max_y: y = self.max_y
-        if y < self.min_y: y = self.min_y
-
-        return (x, y)
 
 class PyGameKeyboardController(object):
     """
@@ -397,6 +388,6 @@ if __name__ == '__main__':
             view.draw_simulation()
             view.screen.blit(view.surface, (0,0))
             pygame.display.update()
-            time.sleep(0.1)
+            # time.sleep(1.1)
 
 
