@@ -15,6 +15,12 @@ from neural_gas import *
 
         SHORT TERM (now):
 
+            make mse histogram
+            display mse histogram far away and next to neural gas histogram
+            look up ways to convert neural gas to histogram
+                the value of each bin needs to be a fraction x / y
+                just like a regular hist, this bin over total
+
             make neural gas histogram
                 how are we going to make the
                 probability density function?
@@ -73,7 +79,6 @@ from neural_gas import *
                 from the neural gass network to then compare
                 to the actual histogram of the original data
 
-
         LONG TERM (eventually):
 
             maybe make different data distributions than normal distribution
@@ -86,7 +91,6 @@ from neural_gas import *
             and talk about tuning hyper parameters
 
             make this work in python 3.5 too
-
 
     SOURCES:
 
@@ -282,7 +286,12 @@ class Model(object):
         self.neural_gas = NeuralGas(self)
 
         self.gas_histogram = [[0 for x in range(self.b)] for y in range(self.b)]
-        self.gas_std_dev = 1.0
+        self.gas_std_dev = 0.75
+
+
+        # mean squared error histogram
+        self.mse_histogram = [[0 for x in range(self.b)] for y in range(self.b)]
+
 
         ###################### continued in update ####################
 
@@ -295,21 +304,27 @@ class Model(object):
             'normal')
 
         # add it to list of data
-        # self.raw_data.add_vertex(new_data_point)
+        self.raw_data.add_vertex(new_data_point)
         self.num_data_points += 1
 
         # add it to raw data histogram
-        bx = math.trunc(self.b * (new_data_point[0] - self.min_x) / (self.max_x - self.min_x))
-        if bx == self.b: bx -= 1
-        by = math.trunc(self.b * (new_data_point[1] - self.min_y) / (self.max_y - self.min_y))
-        if by == self.b: by -= 1
-        self.raw_histogram[by][bx] += 1
-
+        self.update_raw_histogram(new_data_point)
+        
         # update the neural gas
         self.neural_gas.update(new_data_point)
 
         # update neural gas histogram
         self.update_gas_histogram()
+
+        # update mean squared error histogram
+        # self.update_mse()
+
+    def update_raw_histogram(self, new_data_point):
+        bx = math.trunc(self.b * (new_data_point[0] - self.min_x) / (self.max_x - self.min_x))
+        if bx == self.b: bx -= 1
+        by = math.trunc(self.b * (new_data_point[1] - self.min_y) / (self.max_y - self.min_y))
+        if by == self.b: by -= 1
+        self.raw_histogram[by][bx] += 1
 
     def update_gas_histogram(self):
 
@@ -327,6 +342,30 @@ class Model(object):
                     bin_y = j * ((float(self.max_y) - self.min_y) / self.b)
                     self.gas_histogram[j][i] += normpdf(dist(u, (bin_x+half_bin_width,bin_y+half_bin_height)), 0, self.gas_std_dev)
 
+    def scaled_histogram(self, hist):
+
+        scaled_hist = [[0.0 for x in range(self.b)] for y in range(self.b)]
+
+        mx = max(map(max, hist))
+        mn = min(map(min, hist))
+        if mx == 0: return scaled_hist
+
+        for i in range(self.b):
+            for j in range(self.b):
+                scaled_hist[j][i] = (hist[j][i] - mn) / (mx - mn)
+
+        return scaled_hist
+
+    def update_mse(self):
+
+        scaled_gas_hist = self.scaled_histogram(self.gas_histogram)
+        scaled_raw_hist = self.scaled_histogram(self.raw_histogram)
+
+        for i in range(self.b):
+            for j in range(self.b):
+                self.mse_histogram[j][i] = \
+                (scaled_gas_hist[j][i] - scaled_raw_hist[j][i])**2
+
 
 class PyGameKeyboardController(object):
 
@@ -338,7 +377,7 @@ class PyGameKeyboardController(object):
             model (object): contains attributes of the environment
         """
         #self.model = model
-        self.paused = False
+        self.paused = True
 
     def handle_event(self, event):
         """ 
@@ -387,7 +426,7 @@ if __name__ == '__main__':
 
     pygame.init()
 
-    SCREEN_SIZE = (750, 600)
+    SCREEN_SIZE = (850, 600)
     model = Model(SCREEN_SIZE[0], SCREEN_SIZE[1])
     view = PyGameView(model, SCREEN_SIZE)
     controller = PyGameKeyboardController()
