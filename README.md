@@ -7,4 +7,5 @@ The data (as seen in the top left plot) is inserted into the plot according to a
 
 As seen in the plots above the 2 histograms do not look particularly similar. The neural gas histogram also moves a lot while the data's histogram eventually becomes quite stable. This could be due to the fact that the data is that of a normal distribution. Other topologies could yield better results.
 
-Further research will be conducted to determine the histograms of different data topologies, and to explore better ways to convert the neural gas into a histogram. The goal is to find a method where the neural gas's histogram is very similar to the histogram of the data itself for most or all topologies.
+Further research will be conducted to determine the histograms of different data topologies, and to explore better ways to convert the neural gas into a histogram, such as a kNN algorithm. The goal is to find a method where the neural gas's histogram is very similar to the histogram of the data itself for most or all topologies.
+
