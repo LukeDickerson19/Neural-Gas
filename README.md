@@ -8,7 +8,7 @@ The data (as seen in the top left plot) is inserted into the plot according to a
 As seen in the plots above the 2 histograms do not look particularly similar. The neural gas histogram also moves a lot while the data's histogram eventually becomes quite stable. This could be due to the fact that the data is that of a normal distribution, that itself moves a lot. Another topology was created and the hyper parameters were tuned to try to find a more stable representation of the data. The results of an I shaped topology is shown below.
 
 
-<img src="https://github.com/PopeyedLocket/Neural-Gas/blob/master/Videos_and_Images/I_topology_0.png" width="300" height="200"> <img src="https://github.com/PopeyedLocket/Neural-Gas/blob/master/Videos_and_Images/I_topology_1.png" width="300" height="200">
+<img src="https://github.com/PopeyedLocket/Neural-Gas/blob/master/Videos_and_Images/I_topology_0.png" width="400" height="250"> <img src="https://github.com/PopeyedLocket/Neural-Gas/blob/master/Videos_and_Images/I_topology_1.png" width="400" height="250">
 
 
 On the left is results for the hyperparameters used in the paper, and on the right are modified hyper parameters. Modifying the hyper parameters seems to have made the neural gas, and its histogram, a more stable and accurate representation of the data for the I shaped topology. The current hyper parameter settings require more memory to store the neural gas however. Using these same hyper parameter values on the normal distribution topology yields a more stable neural gas as well, and not much change in accuracy (as can be seen in video3.mp4).
