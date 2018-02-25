@@ -11,7 +11,7 @@ As seen in the plots above the 2 histograms do not look particularly similar. Th
 <img src="https://github.com/PopeyedLocket/Neural-Gas/blob/master/Videos_and_Images/I_topology_0.png" width="400" height="250"> <img src="https://github.com/PopeyedLocket/Neural-Gas/blob/master/Videos_and_Images/I_topology_1.png" width="400" height="250">
 
 
-On the left is results for the hyperparameters used in the paper, and on the right are modified hyper parameters. Modifying the hyper parameters seems to have made the neural gas, and its histogram, a more stable and accurate representation of the data for the I shaped topology. The current hyper parameter settings require more memory to store the neural gas however. Using these same hyper parameter values on the normal distribution topology yields a more stable neural gas as well, and not much change in accuracy (as can be seen in video3.mp4).
+On the left is results for the hyperparameters used in the paper, and on the right are modified hyper parameters. Modifying the hyper parameters seems to have made the neural gas, and its histogram, a more stable and accurate representation of the data for the I shaped topology (as seen in video2.mp4). The current hyper parameter settings require more memory to store the neural gas however. Using these same hyper parameter values on the normal distribution topology yields a more stable neural gas as well, and not much change in accuracy (as can be seen in video3.mp4).
 
 Further research will be conducted to explore better ways to convert the neural gas into a histogram. The goal is to find a method where the neural gas's histogram is very similar to the histogram of the data itself for most or all topologies.
 
