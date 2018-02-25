@@ -178,13 +178,22 @@ class NeuralGas(Graph):
 		self.add_unit(a)
 		self.add_unit(b)
 
+		# hyper parameters used in paper
 		self.Eb = 0.2
 		self.En = 0.006
 		self.alpha = 0.5
-		self.a_max = 1 # max age an edge can have
+		self.a_max = 50 # max age an edge can have
 		self.num_input_signals = 0
-		self.lmbda = 5 # number of units * lmbda =(approx.) number of data points
+		self.lmbda = 100 # number of units * lmbda =(approx.) number of data points
 		self.d = 0.995
+
+		# self.Eb = 0.2
+		# self.En = 0.006
+		# self.alpha = 0.5
+		# self.a_max = 1 # max age an edge can have
+		# self.num_input_signals = 0
+		# self.lmbda = 5 # number of units * lmbda =(approx.) number of data points
+		# self.d = 0.995
 
 	def update(self, new_data):
 
@@ -217,7 +226,7 @@ class NeuralGas(Graph):
 			edge_s1_s2.age = 0
 		else:
 			self.add_gas_edge(s1, s2)
-		
+
 		# Remove edges with an age larger than a_max. If this results in points having
 		# no emanating edges, remove them as well.
 		for i, e in enumerate(self.edges):

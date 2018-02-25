@@ -13,102 +13,55 @@ from neural_gas import *
 
     TO DO:
 
-        SHORT TERM (now):
+        need to experiment with neural gas hyper parameters
 
-            need to experiment with neural gas
-            hyper parameters, and look at its update code
-            to figure out what is going on
-                why aren't units deleted faster when a_max is 1?
+        once you have a deeper understanding of it
+        make a new video with new hyper parameter output for 2d normal dist.
+        make a video or image of I topology
+            1 with standard hyper parameters
+            1 with modified ones
+                the current hyper parameters make a pretty
+                good neural gas when the number of data points reaches about 600
 
-            once you have a deeper understanding of it
-            make a new video with new hyper parameter output for 2d normal dist.
-            make a video or image of I topology
-                1 with standard hyper parameters
-                1 with modified ones
-                    the current hyper parameters make a pretty
-                    good neural gas whe the number of data points reaches about 600
-                        if the std of the gas histogram was 
-                        based off the neighbors as it wraps arounds
-                        the mean in 2d maybe it could represent it really well
-                then say:
-                    the hyper-parameters of the neural gas seem to basically create a
-                    trade off of accuracy of data representation with speed and memory
-                    usage
+                the hyper-parameters of the neural gas seem to basically create a
+                trade off of accuracy of data representation with speed and memory
+                usage
 
-            make neural gas histogram
-                how are we going to make the
-                probability density function?
-                    create 2d fourier series
-                        normal distribution as base function
-                        mean is the location of each unit
-                        std_dev is based on:
-                            total number of Units
-                            total number of data points 
-                            
-                            ... if you could model this in mathematica
-                            where you could plot the 2d normal distributions
-                            both individually where they overlap and cumutively
-                            where they sum to form the actual distribution
-                            and you could pause the data stream and 
-                            modify what the std_dev is, to represent the data
-                            as accurately as possible .. see if that value holds
-                            its accuracy when the data stream is unpaused ...
-                            is there a way to then do this mathematically
-                            ... for now i could create this fourier serires thing,
-                            and just make std_dev a constant, (or a fn. of the 
-                                num of units and num of data points)
-                            and then see hwo the mean squared error of the histogram
-                            fluctuates over time as data is input
+        make neural gas histogram
 
-                            ... wtf this doesnt use the edges at all!
+            if the std of the gas histogram was 
+            based off the neighbors as it wraps arounds
+            the mean in 2d maybe it could represent it really well
 
-                    maybe we could increase the probability for areas enclosed
-                    by edges
+            how are we going to make the
+            probability density function?
+                create 2d fourier series
+                    normal distribution as base function
+                    mean is the location of each unit
+                    std_dev is based on:
+                        total number of Units
+                        total number of data points 
+                        
+                        ... if you could model this in mathematica
+                        where you could plot the 2d normal distributions
+                        both individually where they overlap and cumutively
+                        where they sum to form the actual distribution
+                        and you could pause the data stream and 
+                        modify what the std_dev is, to represent the data
+                        as accurately as possible .. see if that value holds
+                        its accuracy when the data stream is unpaused ...
+                        is there a way to then do this mathematically
+                        ... for now i could create this fourier serires thing,
+                        and just make std_dev a constant, (or a fn. of the 
+                            num of units and num of data points)
+                        and then see hwo the mean squared error of the histogram
+                        fluctuates over time as data is input
 
+                        ... wtf this doesnt use the edges at all!
 
-        MEDIUM TERM (later):
+                maybe we could increase the probability for areas enclosed
+                by edges
 
-            I want GUI display of network that:
-                a 2d histogram of how data is being added on 1 plot
-                    colors are used to represent the number of
-                    samples in a given bin with a color legend on
-                    the side 
-
-                a 2d plot of the neural gas
-                    starts with 2 nodes like in the research paper
-                    the network itself could be a dictionary
-                    where each key is a node
-                    each node's value is another dictionary
-                    where we have:
-                        coordinates
-                        list of nodes connected to
-                        error from original position (i think?)
-
-                a bunch of data on the side displaying:
-                    number of data points added
-                    number of nodes in the neural gas
-
-                buttons so user can:
-                    start data addition
-                    pause data addition
-                    reset data to zero
-
-                I need to find a way to rebuild a histogram
-                from the neural gass network to then compare
-                to the actual histogram of the original data
-
-        LONG TERM (eventually):
-
-            maybe make different data distributions than normal distribution
-            do something like what they do in videos
-
-            make gifs and pretty readme
-
-            maybe make a video explaining neural gas how it works
-            and talk about comparing it to histogram
-            and talk about tuning hyper parameters
-
-            make this work in python 3.5 too
 
     SOURCES:
 
@@ -307,8 +260,6 @@ class Model(object):
 
         self.num_data_points = 0
 
-        ############## NEURAL GAS LOGIC STARTS HERE ##################
-
         # raw data has a 2d normal distribution
         self.raw_data = Graph()
         
@@ -319,13 +270,13 @@ class Model(object):
         self.mu_y, self.std_y = (self.max_y - self.min_y) / 2, ((self.max_y - self.min_y) / 2 ) / 3 
 
         self.R = (self.min_x, self.min_y, self.max_x, self.max_y) # region of 2d space
-        # self.topology = [self.R] # entire space
-        self.topology = [
-            (2, 2, 7, 3),
-            (4, 3, 5, 7),
-            (2, 7, 7, 8)
-        ] # I-beam shaped topology
-        self.distribution = 'uniform'
+        self.topology = [self.R] # entire space
+        # self.topology = [
+        #     (2, 2, 7, 3),
+        #     (4, 3, 5, 7),
+        #     (2, 7, 7, 8)
+        # ] # I-beam shaped topology
+        self.distribution = 'normal'
 
         self.b = 20 # b = the number of bins the histogram is wide and tall
         self.raw_histogram = [[0 for x in range(self.b)] for y in range(self.b)]
@@ -339,8 +290,6 @@ class Model(object):
         # mean squared error histogram
         self.mse_histogram = [[0 for x in range(self.b)] for y in range(self.b)]
 
-
-        ###################### continued in update ####################
 
     def update(self, controller):
         
