@@ -5,9 +5,8 @@ Neural Gas is method of data representation with applications in vector quantiza
 
 The data (as seen in the top left plot) is inserted into the plot according to a random normal distribution along both the horizontal and vertical axes. The data is then placed into the bins of a 2d histogram (as seen in the top right plot). Neural Gas is grown from the data (as seen in the bottom left plot) according to the algorithm described in the paper "A Growing Neural Gas Network Learns Topologies" by Bernd Fritzke. A histogram is create from the neural gas (as seen in the bottom right plot) by doing a fourier series of the nodes in the neural gas network where a guassian normal distribution is the base function of the series and the coordinates of each node is the mean of each guassian with a constant standard deviation. 
 
-As seen in the plots above the 2 histograms do not look particularly similar. The neural gas histogram also moves a lot while the data's histogram eventually becomes quite stable. This could be due to the fact that the data is that of a normal distribution, that itself moves a lot.
+As seen in the plots above the 2 histograms do not look particularly similar. The neural gas histogram also moves a lot while the data's histogram eventually becomes quite stable. This could be due to the fact that the data is that of a normal distribution, that itself moves a lot. Another topology was created and the hyper parameters were tuned to try to find a more stable representation of the data. The results of an I shaped topology is shown below.
 
-Another topology was created and the hyper parameters were tuned to try to find a more stable representation of the data. The results of an I shaped topology is shown below.
 
 <img src="https://github.com/PopeyedLocket/Neural-Gas/blob/master/Videos_and_Images/I_topology_0.png" width="300" height="200"> <img src="https://github.com/PopeyedLocket/Neural-Gas/blob/master/Videos_and_Images/I_topology_1.png" width="300" height="200">
 
