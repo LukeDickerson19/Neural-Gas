@@ -15,11 +15,25 @@ from neural_gas import *
 
         SHORT TERM (now):
 
-            make mse histogram
-            display mse histogram far away and next to neural gas histogram
-            look up ways to convert neural gas to histogram
-                the value of each bin needs to be a fraction x / y
-                just like a regular hist, this bin over total
+            need to experiment with neural gas
+            hyper parameters, and look at its update code
+            to figure out what is going on
+                why aren't units deleted faster when a_max is 1?
+
+            once you have a deeper understanding of it
+            make a new video with new hyper parameter output for 2d normal dist.
+            make a video or image of I topology
+                1 with standard hyper parameters
+                1 with modified ones
+                    the current hyper parameters make a pretty
+                    good neural gas whe the number of data points reaches about 600
+                        if the std of the gas histogram was 
+                        based off the neighbors as it wraps arounds
+                        the mean in 2d maybe it could represent it really well
+                then say:
+                    the hyper-parameters of the neural gas seem to basically create a
+                    trade off of accuracy of data representation with speed and memory
+                    usage
 
             make neural gas histogram
                 how are we going to make the
@@ -47,6 +61,10 @@ from neural_gas import *
                             fluctuates over time as data is input
 
                             ... wtf this doesnt use the edges at all!
+
+                    maybe we could increase the probability for areas enclosed
+                    by edges
+
 
         MEDIUM TERM (later):
 
@@ -116,10 +134,33 @@ class PyGameView(object):
 
         self.s = 10 # s = the number of pixels a bin of the histogram is wide and tall
 
+        # draw non changing images
+        self.draw_text_in_simulation(
+            str('Eb = %f' % model.neural_gas.Eb),
+            150, 50 + 2*model.b * self.s + 50, 20, pygame.Color('white'))
+        self.draw_text_in_simulation(
+            str('En = %f' % model.neural_gas.En),
+            150, 50 + 2*model.b * self.s + 70, 20, pygame.Color('white'))
+        self.draw_text_in_simulation(
+            str('alpha = %f' % model.neural_gas.alpha),
+            150, 50 + 2*model.b * self.s + 90, 20, pygame.Color('white'))
+        self.draw_text_in_simulation(
+            str('a_max = %d' % model.neural_gas.a_max),
+            150, 50 + 2*model.b * self.s + 110, 20, pygame.Color('white'))
+        self.draw_text_in_simulation(
+            str('lambda = %d' % model.neural_gas.lmbda),
+            150, 50 + 2*model.b * self.s + 130, 20, pygame.Color('white'))
+        self.draw_text_in_simulation(
+            str('d = %f' % model.neural_gas.d),
+            150, 50 + 2*model.b * self.s + 150, 20, pygame.Color('white'))
+
     def draw_simulation(self):
 
         # fill background
-        self.surface.fill(pygame.Color('black'))
+        # self.surface.fill(pygame.Color('black'))
+        # clear parts that are changing
+        pygame.draw.rect(self.surface, pygame.Color('black'),
+            [149, 29, 2 * model.b * self.s + 25, 2 * model.b * self.s + 65])
 
         #pygame.draw.circle(self.surface, pygame.Color('green'), (50,50), 10)
         #pygame.draw.line(self.surface,   (255,255,255), (10, 20), (30, 40), 4) # (start_x, start_y), (end_x, end_y), width
@@ -277,7 +318,14 @@ class Model(object):
         self.max_y, self.min_y = 10, 0
         self.mu_y, self.std_y = (self.max_y - self.min_y) / 2, ((self.max_y - self.min_y) / 2 ) / 3 
 
-        self.R  = (self.min_x, self.min_y, self.max_x, self.max_y)
+        self.R = (self.min_x, self.min_y, self.max_x, self.max_y) # region of 2d space
+        # self.topology = [self.R] # entire space
+        self.topology = [
+            (2, 2, 7, 3),
+            (4, 3, 5, 7),
+            (2, 7, 7, 8)
+        ] # I-beam shaped topology
+        self.distribution = 'uniform'
 
         self.b = 20 # b = the number of bins the histogram is wide and tall
         self.raw_histogram = [[0 for x in range(self.b)] for y in range(self.b)]
@@ -287,7 +335,6 @@ class Model(object):
 
         self.gas_histogram = [[0 for x in range(self.b)] for y in range(self.b)]
         self.gas_std_dev = 0.75
-
 
         # mean squared error histogram
         self.mse_histogram = [[0 for x in range(self.b)] for y in range(self.b)]
@@ -299,9 +346,8 @@ class Model(object):
         
         # create new data point in 2d normal distribution
         new_data_point = random2dPoint(
-            self.min_x, self.max_x, self.mu_x, self.std_x, 
-            self.min_y, self.max_y, self.mu_y, self.std_y,
-            'normal')
+            self.distribution, self.topology, self.R,
+            self.mu_x, self.std_x, self.mu_y, self.std_y)
 
         # add it to list of data
         self.raw_data.add_vertex(new_data_point)
@@ -341,6 +387,9 @@ class Model(object):
                     bin_x = i * ((float(self.max_x) - self.min_x) / self.b)
                     bin_y = j * ((float(self.max_y) - self.min_y) / self.b)
                     self.gas_histogram[j][i] += normpdf(dist(u, (bin_x+half_bin_width,bin_y+half_bin_height)), 0, self.gas_std_dev)
+
+        # k nearest neighbors
+        k = 3
 
     def scaled_histogram(self, hist):
 
@@ -426,7 +475,7 @@ if __name__ == '__main__':
 
     pygame.init()
 
-    SCREEN_SIZE = (850, 600)
+    SCREEN_SIZE = (850, 650)
     model = Model(SCREEN_SIZE[0], SCREEN_SIZE[1])
     view = PyGameView(model, SCREEN_SIZE)
     controller = PyGameKeyboardController()

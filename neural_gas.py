@@ -11,31 +11,29 @@ def dist(a, b):
 	# b is a tuple: (x, y)
 	return math.sqrt((a.pos[0] - b[0])**2 + (a.pos[1] - b[1])**2)
 def random2dPoint(
-	min_x, max_x, mu_x, std_x,
-	min_y, max_y, mu_y, std_y,
-	distribution):
+	distribution, topology, R,
+	mu_x, std_x, mu_y, std_y):
 
+	x, y = -1.0, -1.0
 	if distribution == 'uniform':
-	    x = np.random.uniform(mu_x, std_x, 1)[0]
-	    if x > max_x: x = max_x
-	    if x < min_x: x = min_x
-	    y = np.random.uniform(mu_x, std_x, 1)[0]
-	    if y > max_y: y = max_y
-	    if y < min_y: y = min_y
-
+		while not point_in_topology(x, y, topology):
+		    x = np.random.uniform(R[0], R[2], 1)[0]
+		    y = np.random.uniform(R[1], R[3], 1)[0]
 	elif distribution == 'normal':
-	    x = np.random.normal(mu_x, std_x, 1)[0]
-	    if x > max_x: x = max_x
-	    if x < min_x: x = min_x
-	    y = np.random.normal(mu_x, std_x, 1)[0]
-	    if y > max_y: y = max_y
-	    if y < min_y: y = min_y
-
+		while not point_in_topology(x, y, topology):
+		    x = np.random.normal(mu_x, std_x, 1)[0]
+		    y = np.random.normal(mu_x, std_x, 1)[0]
 	else:
 		print 'invalid distribution. must be: \'uniform\' or \'normal\''
 		sys.exit() 
 
 	return (x, y)
+def point_in_topology(x, y, topology):
+	# topology = [(x_min, y_min, x_max, y_max), ... ]
+	return any(map(lambda region:
+			region[0] <= x and x <= region[2] and
+			region[1] <= y and y <= region[3],
+		topology))
 def normpdf(x, mean, sd):
     # curtesy of: https://stackoverflow.com/questions/12412895/calculate-probability-in-normal-distribution-given-mean-std-in-python
     # future optimization: https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.norm.html
@@ -170,23 +168,22 @@ class NeuralGas(Graph):
 		self.graph = {}
 
 		# add points a and b
-		a = random2dPoint(
-            model.min_x, model.max_x, model.mu_x, model.std_x, 
-            model.min_y, model.max_y, model.mu_y, model.std_y,
-            'uniform')
-		b = random2dPoint(
-            model.min_x, model.max_x, model.mu_x, model.std_x, 
-            model.min_y, model.max_y, model.mu_y, model.std_y,
-            'uniform')
+		a = new_data_point = random2dPoint(
+            'normal', model.topology, model.R,
+            model.mu_x, model.std_x, model.mu_y, model.std_y)
+		b = new_data_point = random2dPoint(
+            'normal', model.topology, model.R,
+            model.mu_x, model.std_x, model.mu_y, model.std_y)
+
 		self.add_unit(a)
 		self.add_unit(b)
 
 		self.Eb = 0.2
 		self.En = 0.006
 		self.alpha = 0.5
-		self.a_max = 50 # max age an edge can have
+		self.a_max = 1 # max age an edge can have
 		self.num_input_signals = 0
-		self.lmbda = 100
+		self.lmbda = 5 # number of units * lmbda =(approx.) number of data points
 		self.d = 0.995
 
 	def update(self, new_data):
