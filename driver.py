@@ -13,6 +13,9 @@ from neural_gas import *
 
     TO DO:
 
+        implement new way to do neural gas histogram
+            see histogram_creator_test TO DO
+
         need to experiment with neural gas hyper parameters
 
         once you have a deeper understanding of it
@@ -176,37 +179,6 @@ class PyGameView(object):
             pygame.draw.line(self.surface,
                 pygame.Color('white'),
                 (v1x, v1y), (v2x, v2y), 2)
-    def draw_2d_graph_old(self, graph, sp, r=3):
-
-        w, h = model.b * self.s, model.b * self.s
-
-        # draw border graph resides in
-        pygame.draw.rect(self.surface,
-            pygame.Color('white'),
-            (sp[0], sp[1], w, h), 1)
-            
-        # draw graph
-        edges = []
-        for v, es in graph.items():
-
-            # interpolate v to screen
-            vx = math.trunc((w * (v[0] - model.min_x) / (model.max_x - model.min_x)) + sp[0])
-            vy = math.trunc((h * (v[1] - model.min_y) / (model.max_y - model.min_y)) + sp[1])
-            
-            # draw vertex v
-            pygame.draw.circle(self.surface,
-                pygame.Color('white'),
-                (vx, vy), r)
-
-            # draw edge e in edges es connected to vertex v 
-            for e in es:
-                if not (e, v) in edges:
-                    edges.append((e, v))
-                    pygame.draw.line(self.surface,
-                        pygame.Color('white'),
-                        (sp[0]+v[0], sp[1]+v[1]), 
-                        (sp[0]+e[0], sp[1]+e[1]),
-                        2)
     def draw_2d_histogram(self, hist, sp):
 
         mx = max(map(max, hist))
@@ -326,19 +298,37 @@ class Model(object):
         # reset
         self.gas_histogram = [[0 for x in range(self.b)] for y in range(self.b)]
 
-        half_bin_width = (float(self.max_x) - self.min_x) / (2*self.b) # half a bin width on x axis
-        half_bin_height = (float(self.max_y) - self.min_y) / (2*self.b) # half a bin width on y axis
+        self.variable_std_dev_fourier_hist()
 
+    def basic_fourier_hist(self):
+        
         # sum fourier series
+        bin_width  = ((float(self.max_x) - self.min_x) / self.b)
+        bin_height = ((float(self.max_y) - self.min_y) / self.b)
+        half_bin_width  = bin_width / 2.0  # half a bin width on x axis
+        half_bin_height = bin_height / 2.0 # half a bin width on y axis
         for u in self.neural_gas.vertices:
             for i in range(self.b):
                 for j in range(self.b):
-                    bin_x = i * ((float(self.max_x) - self.min_x) / self.b)
-                    bin_y = j * ((float(self.max_y) - self.min_y) / self.b)
+                    bin_x = i * bin_width
+                    bin_y = j * bin_height
                     self.gas_histogram[j][i] += normpdf(dist(u, (bin_x+half_bin_width,bin_y+half_bin_height)), 0, self.gas_std_dev)
 
-        # k nearest neighbors
-        k = 3
+    def variable_std_dev_fourier_hist(self):
+
+        bin_width  = ((float(self.max_x) - self.min_x) / self.b)
+        bin_height = ((float(self.max_y) - self.min_y) / self.b)
+        half_bin_width  = bin_width / 2.0
+        half_bin_height = bin_height / 2.0
+        verts = {}
+        for u1 in self.neural_gas.vertices:
+            verts[u1] = {'neighbors':[]}
+            for u2 in self.neural_gas.vertices:
+                if u1 != u2:
+                    verts[u1]['neighbors'].append(u2)
+
+        # for v, n in verts.items():
+        #     pass
 
     def scaled_histogram(self, hist):
 
