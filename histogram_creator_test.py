@@ -13,8 +13,15 @@ from neural_gas import *
         need to depict the std dev sum around 1 node on graph plot
         from data aquired in m dictionary
 
+            need to get angles right
+
         might want to plot the individual gaussians on a 2d plot as well
 
+        might want to make it so you can pick up and move points
+
+            shouldn't be to hard with most of setup already done
+            see evolutionary neural network for mouse pos tracking
+            if neccessary
 
     SOURCES:
 
@@ -59,16 +66,47 @@ class PyGameView(object):
             (sp[0], sp[1], w, h), 1)
 
         # draw graph
+
+        if model.selecting_vertex:
+            model.selected_vertex = model.g.vertices[0]
+
         for v in graph.vertices:
 
             # interpolate v to screen
             vx = math.trunc((w * (v.pos[0] - model.min_x) / (model.max_x - model.min_x)) + sp[0])
             vy = math.trunc((h * (v.pos[1] - model.min_y) / (model.max_y - model.min_y)) + sp[1])
+
+            # determine selected vertex
+            if model.selecting_vertex:
+                svx = math.trunc((w * (model.selected_vertex.pos[0] - model.min_x) / (model.max_x - model.min_x)) + sp[0])
+                svy = math.trunc((h * (model.selected_vertex.pos[1] - model.min_y) / (model.max_y - model.min_y)) + sp[1])
+                if math.sqrt((vx - model.mouse_pos[0])**2 + \
+                    (vy - model.mouse_pos[1])**2) < \
+                    math.sqrt((svx - model.mouse_pos[0])**2 + \
+                    (svy - model.mouse_pos[1])**2):
+                    model.selected_vertex = v
             
+            if v == model.selected_vertex:
+                col = pygame.Color('red')
+            else:
+                col = pygame.Color('white')
+
+            if not model.selecting_vertex and v == model.selected_vertex:
+                amp = 20
+                for m, stuff in model.m.items():
+                    points = [(vx,vy)]
+                    print 'm = %s\tstuff = %s' % (m, stuff)
+                    amp += 5 
+                    pygame.draw.arc(self.surface, col,
+                        [vx-amp, vy-amp, 2*amp, 2*amp], m, m - stuff['ahead'])
+
+                    # pygame.gfxdraw.filled_polygon(self.simulation_surface, points, col)
+
             # draw vertex v
             pygame.draw.circle(self.surface,
-                pygame.Color('white'),
-                (vx, vy), r)
+                col, (vx, vy), r)
+
+        model.selecting_vertex = False
 
         # draw edge e in edges es connected to vertex v 
         for e in graph.edges:
@@ -122,11 +160,8 @@ class PyGameView(object):
             text, True, color)
         self.surface.blit(text_render, (x, y))
 
+
 class Model(object):
-    """
-    Represents the state of all entities in the environment and drawing
-    parameters
-    """
 
     def __init__(self, width, height):
         """
@@ -141,7 +176,9 @@ class Model(object):
         self.width = width
         self.show = True # show current model
         self.show_controls = False # controls toggle
-
+        self.mouse_pos = (0,0) # (x,y) position of mouse
+        self.selected_vertex = None
+        self.selecting_vertex = False
 
         self.max_x, self.min_x = 10, 0
         # self.mu_x, self.std_x = (self.max_x - self.min_x) / 2, ((self.max_x - self.min_x) / 2 ) / 3 
@@ -154,16 +191,15 @@ class Model(object):
 
         # create 2d graph g
         self.g = Graph()
-        self.g.add_vertex((2,2))
-        self.g.add_vertex((4,2))
-        self.g.add_vertex((2.5,3.5))
-        self.g.add_vertex((2,4))
+        self.g.add_vertex((3,3))
+        self.g.add_vertex((3,5))
+        self.g.add_vertex((5,3))
+        self.g.add_vertex((1,3))
 
         # create 2d histogram h of graph g with b^2 bins
         self.b = 40 # b = number of bins on each axis
         self.h = [[0 for x in range(self.b)] for y in range(self.b)]
         self.construct_histogram()
-
 
     def construct_histogram(self):
         for v in self.g.vertices:
@@ -179,48 +215,72 @@ class Model(object):
         m = {}
         for v in self.g.vertices:
             if v != v0:
-                a1 = np.atan2(v0.pos[0] - v.pos[0], v0.pos[1] - v.pos[1])
-                m[a1] = {'d':dist(v0, v.pos)}
+                a1 = np.arctan2(v0.pos[0] - v.pos[0], v0.pos[1] - v.pos[1])
+                m[a1] = {'d':dist(v0, v.pos), 'v':v.pos}
 
-        sort(m)
+        sorted(m)
 
+        print type(m)
+        print m
+        angs = m.keys()
+        print type(angs)
+        print angs
 
-        angs = m.keys()[0] # previous angle
-        pd = m[pa] # previous distance
-        first = True
-        b = {} # b = represents (variable name creativity is over 9000!!!)
-        for i in range(1, len(angs)):
+        for i in range(len(angs)):
 
             # first
             if i == 0:
+                print 'first'
+                print m[angs[i]]['v']
                 # [angle behind, angle, angle ahead]
-                a = [angs[len(angs)-1], a[i], angs[i+1]]
+                a = [angs[len(angs)-1], angs[i], angs[i+1]]
 
             # last
-            elif i == len(angs):
+            elif i == len(angs)-1:
+                print 'last'
+                print m[angs[i]]['v']
                 a = [angs[i-1], angs[i], angs[0]]
 
             # middle
             else:
+                print 'middle'
+                print m[angs[i]]['v']
                 a = angs[i-1:i+2]
 
             # change in angle ahead and behind the current angle
-            da_ahead  = a[2] - a[1]
-            da_behind = a[1] - a[0]
+            print 'a = %s' % a
+            da_ahead  = abs(a[2] - a[1])
+            da_behind = abs(a[1] - a[0])
+            print 'da ahead = %f' % da_ahead
+            print 'da behind = %f' % da_behind
 
+            m[angs[i]]['ahead'] = da_ahead
+            m[angs[i]]['behind'] = da_behind
             m[angs[i]]['std_dev_ahead']  = 1.0 / da_ahead
             m[angs[i]]['std_dev_behind'] = 1.0 / da_behind
             m[angs[i]]['amplitude'] = 1.0 / m[angs[i]]['d']
 
+            self.m = m
+            print '\n'
     def update(self, controller):
 
-        pass
+        # update mouse position
+        self.mouse_pos = pygame.mouse.get_pos()
+        # if self.selected_vertex != None:
+        #     print 'mouse_pos = %s\tselected vertex = (%f, %f)' \
+        #     % (self.mouse_pos, self.selected_vertex.pos[0], self.selected_vertex.pos[1])
+        # else:
+        #     print 'mouse_pos = %s\tselected vertex = %s' \
+        #     % (self.mouse_pos, self.selected_vertex)
+
+        if self.selected_vertex:
+            self.variable_std_dev(self.selected_vertex)
+            print self.m
 
 class PyGameKeyboardController(object):
     """
     Keyboard controller that responds to keyboard input
     """
-
 
     def __init__(self):
         """
@@ -229,9 +289,8 @@ class PyGameKeyboardController(object):
         Args:
             model (object): contains attributes of the environment
         """
-        #self.model = model
+        self.model = model
         self.paused = False
-
 
     def handle_event(self, event):
         """ 
@@ -248,6 +307,9 @@ class PyGameKeyboardController(object):
                     print('mouse wheel scroll down')
                 elif event.button == 1:
                     print('mouse left click')
+                    # find point closest to mouse location
+                    model.selecting_vertex = True
+
                 elif event.button == 3:
                     print('mouse right click')
                 else:
