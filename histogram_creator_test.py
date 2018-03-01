@@ -5,6 +5,7 @@ from pygame.locals import QUIT, KEYDOWN
 from pygame import gfxdraw
 import os
 from neural_gas import *
+from operator import itemgetter
 
 ''' NOTES:
 
@@ -13,7 +14,12 @@ from neural_gas import *
         need to depict the std dev sum around 1 node on graph plot
         from data aquired in m dictionary
 
-            need to get angles right
+            determine how distance and angle are going to
+            influence the std dev2
+                cant be infinity for 0 angle
+                both were inversely proportional though
+
+            
 
         might want to plot the individual gaussians on a 2d plot as well
 
@@ -80,10 +86,8 @@ class PyGameView(object):
             if model.selecting_vertex:
                 svx = math.trunc((w * (model.selected_vertex.pos[0] - model.min_x) / (model.max_x - model.min_x)) + sp[0])
                 svy = math.trunc((h * (model.selected_vertex.pos[1] - model.min_y) / (model.max_y - model.min_y)) + sp[1])
-                if math.sqrt((vx - model.mouse_pos[0])**2 + \
-                    (vy - model.mouse_pos[1])**2) < \
-                    math.sqrt((svx - model.mouse_pos[0])**2 + \
-                    (svy - model.mouse_pos[1])**2):
+                if math.sqrt((vx - model.mouse_pos[0])**2 + (vy - model.mouse_pos[1])**2) < \
+                    math.sqrt((svx - model.mouse_pos[0])**2 + (svy - model.mouse_pos[1])**2):
                     model.selected_vertex = v
             
             if v == model.selected_vertex:
@@ -91,16 +95,20 @@ class PyGameView(object):
             else:
                 col = pygame.Color('white')
 
+            # draw angles of selected vertex
             if not model.selecting_vertex and v == model.selected_vertex:
                 amp = 20
-                for m, stuff in model.m.items():
-                    points = [(vx,vy)]
-                    print 'm = %s\tstuff = %s' % (m, stuff)
+                for m in model.m:
                     amp += 5 
-                    pygame.draw.arc(self.surface, col,
-                        [vx-amp, vy-amp, 2*amp, 2*amp], m, m - stuff['ahead'])
+                    # # delta angle ahead
+                    # pygame.draw.arc(self.surface, col,
+                    #     [vx-amp, vy-amp, 2*amp, 2*amp],
+                    #     m['a'] + np.pi/2, m['a'] + np.pi/2 + m['da ahead'])
 
-                    # pygame.gfxdraw.filled_polygon(self.simulation_surface, points, col)
+                    # # delta angle behind
+                    # pygame.draw.arc(self.surface, col,
+                    #     [vx-amp, vy-amp, 2*amp, 2*amp],
+                    #     m['a'] + np.pi/2 - m['da behind'], m['a'] + np.pi/2)
 
             # draw vertex v
             pygame.draw.circle(self.surface,
@@ -191,10 +199,15 @@ class Model(object):
 
         # create 2d graph g
         self.g = Graph()
+        # self.g.add_vertex((1,1))
+        # self.g.add_vertex((1,3))
+        # self.g.add_vertex((1,5))
+        self.g.add_vertex((3,1))
         self.g.add_vertex((3,3))
         self.g.add_vertex((3,5))
+        self.g.add_vertex((5,1))
+        self.g.add_vertex((5,5))
         self.g.add_vertex((5,3))
-        self.g.add_vertex((1,3))
 
         # create 2d histogram h of graph g with b^2 bins
         self.b = 40 # b = number of bins on each axis
@@ -212,56 +225,69 @@ class Model(object):
         self.h[by][bx] += 1
 
     def variable_std_dev(self, v0):
-        m = {}
+        m = []
         for v in self.g.vertices:
             if v != v0:
-                a1 = np.arctan2(v0.pos[0] - v.pos[0], v0.pos[1] - v.pos[1])
-                m[a1] = {'d':dist(v0, v.pos), 'v':v.pos}
+                m.append(
+                    {'a':np.arctan2(
+                        v0.pos[0] - v.pos[0],
+                        v0.pos[1] - v.pos[1]),
+                    'd':dist(v0, v.pos),
+                    'v':v.pos})
 
-        sorted(m)
+        m = sorted(m, key=itemgetter('a'))
 
-        print type(m)
-        print m
-        angs = m.keys()
-        print type(angs)
-        print angs
-
-        for i in range(len(angs)):
+        for i in range(len(m)):
 
             # first
             if i == 0:
-                print 'first'
-                print m[angs[i]]['v']
-                # [angle behind, angle, angle ahead]
-                a = [angs[len(angs)-1], angs[i], angs[i+1]]
+                vect_behind = m[len(m)-1]['v']
+                vect_ahead  = m[i+1]['v']
 
             # last
-            elif i == len(angs)-1:
-                print 'last'
-                print m[angs[i]]['v']
-                a = [angs[i-1], angs[i], angs[0]]
-
+            elif i == len(m)-1:
+                vect_behind = m[i-1]['v']
+                vect_ahead  = m[0]['v']
+            
             # middle
             else:
-                print 'middle'
-                print m[angs[i]]['v']
-                a = angs[i-1:i+2]
-
+                vect_behind = m[i-1]['v']
+                vect_ahead  = m[i+1]['v']
+            
             # change in angle ahead and behind the current angle
-            print 'a = %s' % a
-            da_ahead  = abs(a[2] - a[1])
-            da_behind = abs(a[1] - a[0])
-            print 'da ahead = %f' % da_ahead
-            print 'da behind = %f' % da_behind
+            da_ahead  = abs(self.da2(v0.pos, m[i]['v'], vect_ahead))
+            da_behind = abs(self.da2(v0.pos, vect_behind, m[i]['v']))
 
-            m[angs[i]]['ahead'] = da_ahead
-            m[angs[i]]['behind'] = da_behind
-            m[angs[i]]['std_dev_ahead']  = 1.0 / da_ahead
-            m[angs[i]]['std_dev_behind'] = 1.0 / da_behind
-            m[angs[i]]['amplitude'] = 1.0 / m[angs[i]]['d']
+            m[i]['da ahead'] = da_ahead
+            m[i]['da behind'] = da_behind
+            # m[i]['std_dev_ahead']  = 1.0 / da_ahead
+            # m[i]['std_dev_behind'] = 1.0 / da_behind
+            # m[i]['amplitude'] = 1.0 / m[i]['d']
 
-            self.m = m
-            print '\n'
+        self.m = m
+
+    def da(self, a1, a2, direction): # delta angle from angle a1 to a2 either clockwise or counter clockwise direction
+        da = a2 - a1
+        while da < -np.pi: da += 2*np.pi
+        while da > np.pi:  da -= 2*np.pi
+        return da
+        # if direction == 'counter-clockwise':
+
+        # if a1 >= 0 and a2 >= 0:
+    def da2(self, p0, p1, p2):
+        
+        v1 = (p1[0] - p0[0], p1[1] - p0[1])
+        v2 = (p2[0] - p0[0], p2[1] - p0[1])
+
+        # dot = x1*x2 + y1*y2      # dot product
+        # det = x1*y2 - y1*x2      # determinant
+
+        dot = v1[0]*v2[0] + v1[1]*v2[1]      # dot product
+        det = v1[0]*v2[1] - v1[1]*v2[0]      # determinant
+        if det <= 0:
+            return np.arctan2(det, dot)
+        return 2*np.pi - np.arctan2(det, dot)
+
     def update(self, controller):
 
         # update mouse position
@@ -275,7 +301,6 @@ class Model(object):
 
         if self.selected_vertex:
             self.variable_std_dev(self.selected_vertex)
-            print self.m
 
 class PyGameKeyboardController(object):
     """
@@ -342,7 +367,7 @@ if __name__ == '__main__':
 
     pygame.init()
 
-    SCREEN_SIZE = (850, 500)
+    SCREEN_SIZE = (850, 350)
     model = Model(SCREEN_SIZE[0], SCREEN_SIZE[1])
     view = PyGameView(model, SCREEN_SIZE)
     controller = PyGameKeyboardController()
