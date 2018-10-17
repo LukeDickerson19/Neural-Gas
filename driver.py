@@ -242,13 +242,13 @@ class Model(object):
         self.mu_y, self.std_y = (self.max_y - self.min_y) / 2, ((self.max_y - self.min_y) / 2 ) / 3 
 
         self.R = (self.min_x, self.min_y, self.max_x, self.max_y) # region of 2d space
-        self.topology = [self.R] # entire space
-        # self.topology = [
-        #     (2, 2, 7, 3),
-        #     (4, 3, 5, 7),
-        #     (2, 7, 7, 8)
-        # ] # I-beam shaped topology
-        self.distribution = 'normal'
+        # self.topology = [self.R] # entire space
+        self.topology = [
+            (2, 2, 7, 3),
+            (4, 3, 5, 7),
+            (2, 7, 7, 8)
+        ] # I-beam shaped topology
+        self.distribution = 'uniform'
 
         self.b = 20 # b = the number of bins the histogram is wide and tall
         self.raw_histogram = [[0 for x in range(self.b)] for y in range(self.b)]
@@ -257,7 +257,7 @@ class Model(object):
         self.neural_gas = NeuralGas(self)
 
         self.gas_histogram = [[0 for x in range(self.b)] for y in range(self.b)]
-        self.gas_std_dev = 0.75
+        self.gas_std_dev = 0.25
 
         # mean squared error histogram
         self.mse_histogram = [[0 for x in range(self.b)] for y in range(self.b)]
@@ -298,7 +298,81 @@ class Model(object):
         # reset
         self.gas_histogram = [[0 for x in range(self.b)] for y in range(self.b)]
 
+        # self.basic_fourier_hist()
         self.variable_std_dev_fourier_hist()
+        # self.kNN_hist()
+
+    def kNN_hist(self):
+
+        bin_width  = ((float(self.max_x) - self.min_x) / self.b)
+        bin_height = ((float(self.max_y) - self.min_y) / self.b)
+        half_bin_width  = bin_width / 2.0  # half a bin width on x axis
+        half_bin_height = bin_height / 2.0 # half a bin width on y axis
+
+        # get dist_kNN for each point
+        k = 22
+        vk = {}
+        for v in self.neural_gas.vertices:
+            kNNs, net_dist = self.kNN_stuff(v.pos, k)
+            vk[v] = {'kNNs':kNNs, 'net_distance':net_dist}
+
+        # find minimum and maximum
+        max_dist, min_dist = -999999999999.9, 9999999999.9
+        for vert, knn_stuff in vk.iteritems():
+            if max_dist < knn_stuff['net_distance']:
+                max_dist = knn_stuff['net_distance']    
+            if min_dist > knn_stuff['net_distance']:
+                max_dist = knn_stuff['net_distance']
+
+        # for each histogram point
+        # determine its kNNs and dist_kNN
+        # h = [[0 for x in range(self.b)] for y in range(self.b)]
+        for i in range(self.b):
+            for j in range(self.b):
+                bin_x = i * bin_width
+                bin_y = j * bin_height
+                x = bin_x + half_bin_width
+                y = bin_y + half_bin_height
+                kNNs, net_dist = self.kNN_stuff((x,y), k)
+                # h[j][i] = {'kNNs':kNNs, 'net_distance':net_dist}
+                self.gas_histogram[j][i] = net_dist
+
+        # normalize it with the min and max dist_kNN
+
+
+        # divide it by the normalized value of the points dist_kNN
+
+        # for i in range(self.b):
+        #     for j in range(self.b):
+        #         bin_x = i * bin_width
+        #         bin_y = j * bin_height
+        #         x = bin_x + half_bin_width
+        #         y = bin_y + half_bin_height
+        #         for v in self.g.vertices:
+        #             self.h[j][i] += 1.0/(dist(v, (x, y))**0.25)
+        #         # self.h[j][i] = 1.0 / self.h[j][i]
+    def kNN_stuff(self, v0, k):
+        kNNs = []
+        for v in self.neural_gas.vertices:
+            if v.pos != v0:
+                d = dist(v, v0)
+                i = self.index_of_new(kNNs, d)
+                kNNs.insert(i, {'v':v, 'd':d})
+        kNNs = kNNs[:k]
+        net_dist = 0.0
+        for v in kNNs:
+            net_dist += v['d']
+        return kNNs, net_dist
+    def index_of_new(self, list, value):
+        # finds index in list to keep list sorted
+        if len(list) == 0:
+            return 0
+        else:
+            for i in range(len(list)):
+                if value < list[i]['d']:
+                    return i
+            return len(list)
+
 
     def basic_fourier_hist(self):
         
@@ -313,7 +387,6 @@ class Model(object):
                     bin_x = i * bin_width
                     bin_y = j * bin_height
                     self.gas_histogram[j][i] += normpdf(dist(u, (bin_x+half_bin_width,bin_y+half_bin_height)), 0, self.gas_std_dev)
-
     def variable_std_dev_fourier_hist(self):
 
         bin_width  = ((float(self.max_x) - self.min_x) / self.b)
